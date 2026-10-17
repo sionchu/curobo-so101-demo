@@ -25,3 +25,6 @@ __pycache__/
 *.pyc
 # generated robot config with absolute paths
 so101/so101_pick.yml
+logs_*.out
+logs_*.err
+screens/

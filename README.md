@@ -85,6 +85,9 @@ NVIDIA publishes the CUDA 13.0 toolchain as pip wheels. In `.venv-fp`:
 
 ## Third-party code (cloned, not vendored)
 
+`patches/foundationpose-*` contain small changes to / a port of NVIDIA FoundationPose code, which is under the NVIDIA
+Source Code License (non-commercial); keep this repository private or remove those files before sharing publicly.
+
 | Repo | Commit | License |
 |---|---|---|
 | NVlabs/curobo | 78fd485 | Apache-2.0 |
