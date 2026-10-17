@@ -82,6 +82,7 @@ def main():
     ap.add_argument("--expert", action="store_true")
     ap.add_argument("--tag", default="eval")
     ap.add_argument("--video-every", type=int, default=5, help="keep viewport frames for every Nth scenario")
+    ap.add_argument("--limit", type=int, default=None)
     a = ap.parse_args()
     if a.make_scenarios:
         make_scenarios()
@@ -103,7 +104,7 @@ def main():
         import sim_demo_gen as G
     results, sim, cur_box = [], None, None
     t0 = time.perf_counter()
-    for i, sc in enumerate(S["scenarios"]):
+    for i, sc in enumerate(S["scenarios"][: a.limit]):
         if cur_box != sc["box"]:  # new Isaac session per box placement
             if sim is not None:
                 sim.close()
@@ -154,9 +155,14 @@ def main():
                                      robot_type="so100_follower").cpu().numpy().reshape(-1)
                 ex_ = sim.call(cmd="exec", q=[to_rad(act).tolist()], dt=1 / 60, settle=0.0)
                 max_rise = max(max_rise, ex_["cube"][0][2] - z0)
+                if k % 50 == 49:  # per-step timing goes to the log file (no pipes)
+                    print(f"   step {k + 1}: {(time.perf_counter() - te) / (k + 1) * 1000:.0f} ms/step, "
+                          f"max_rise {max_rise * 1000:.0f} mm", flush=True)
             st = sim.call(cmd="wait", seconds=0.5)
             r = judge(st["cube"], sc, z0, max_rise)
-        r.update(scenario=i, seconds=round(time.perf_counter() - te, 1))
+        fe = sim.call(cmd="state")["frames"]
+        r.update(scenario=i, seconds=round(time.perf_counter() - te, 1), frame_end=fe,
+                 frames_dir=f"frames_eval_{a.tag}_{i - i % 5:02d}")
         results.append(r)
         print(f"[{a.tag}] scenario {i:02d}: {'SUCCESS' if r['success'] else 'fail   '} lifted={r['lifted']} "
               f"max_rise={r['max_rise_mm']}mm ({r['seconds']}s)", flush=True)

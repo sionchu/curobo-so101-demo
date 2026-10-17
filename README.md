@@ -25,7 +25,7 @@ Legend: **measured** = observed in a run on this machine; **assumption** = a val
 | 5 | Isaac Sim PhysX execution + static wall + box spawned mid-transport | real gripper grasp (cube lifted 78 mm), detected new box (-7.1 mm on old path), replanned in 0.137 s, 9.8 mm clearance, 0 robot/obstacle contacts, placed 21.5 mm from target | re-perception after the first attempt = sim pose + 1.6 mm noise (virtual camera) |
 | 6 | FoundationPose (model-based) on real RGB-D | vs ICP/PnP: cube 0.9 mm xy / -3.9 mm z / -3.8 deg yaw; bin 4.2 mm xy; tracking jitter < 0.6 mm | depth re-projected into RGB with our estimated extrinsics; FP says the cube is tilted ~17 deg (unverified) |
 | 7 | LeRobot ACT (scratch, 25k steps) and SmolVLA (fine-tune, 20k steps) on real data; held-out episodes 45-49 | arm MAE: hold-state 3.19, ACT 3.96, SmolVLA 2.00; gripper close timing: hold 4.0, ACT 3.0, SmolVLA 7.2 frames | Isaac closed-loop grasp from rendered cameras failed for both (visual sim-to-real gap; camera extrinsics guessed) |
-| 8 | Simulation data (cuRobo expert in Isaac) + co-training SmolVLA | see "Stage 8" below | |
+| 8 | Simulation data (cuRobo expert in Isaac) + co-training SmolVLA | Isaac closed-loop success: real-only 0/20, sim co-trained 7/20, expert 20/20; real offline arm MAE 2.01 -> 2.28 | eval scenes share the sim training distribution; no real-robot test |
 
 ### Stage 7 offline evaluation (held-out episodes 45-49, 1355 frames, dataset units)
 
@@ -41,7 +41,38 @@ reachable baseline.
 
 ### Stage 8 (simulation data)
 
-_In progress - filled in when the run finishes._
+Data: 120 cuRobo expert pick-and-place episodes generated in Isaac Sim (`sim_demo_gen.py`, 120/120 kept,
+170 min, 36,468 frames), with box/brick/camera/lighting sampled around the real dataset's statistics. Merged
+with the real dataset (`sim_to_lerobot.py`) -> 170 episodes. SmolVLA was co-trained from the real-data
+checkpoint (020000) on real episodes 0-44 + all sim episodes (sim ~77% of frames), 10k steps, batch 8,
+66 min, loss 1.06 -> 0.045.
+
+Isaac closed-loop (20 seeded scenarios, seed 1000, different from the training seed; start at rest pose;
+15 s; success = brick resting inside the box per physics state):
+
+| Method | Success | Lifted >= 30 mm |
+|---|---|---|
+| SmolVLA, real data only (020000) | 0/20 | 0/20 |
+| SmolVLA + sim co-training (010000) | 7/20 | 12/20 |
+| cuRobo expert (upper bound) | 20/20 | 20/20 |
+
+Offline re-evaluation on held-out real episodes 45-49 (same protocol as Stage 7):
+
+| Method | arm MAE | gripper MAE | 10-step chunk MAE | close-timing err (frames) |
+|---|---|---|---|---|
+| hold current state | 3.19 | 2.28 | - | 4.0 |
+| ACT | 3.96 | 1.37 | 4.35 | 3.0 |
+| SmolVLA (real only) | 2.01 | 1.16 | 2.89 | 8.0 |
+| SmolVLA + sim | 2.28 | 1.26 | 3.09 | 14.6 |
+
+Reading (inference, not verified): the sim data closes the *in-sim* visual gap, but the eval scenes come from
+the same distribution as the sim training data, so this says nothing yet about the real robot - and the real
+offline metrics got slightly worse. SmolVLA re-runs differ by ~0.01 MAE / ~1 frame (stochastic inference).
+Not done: plugging the policy into the cuRobo harness (cuRobo approach -> policy grasp -> verify -> cuRobo
+transport with obstacles).
+
+Videos: `videos/sim_finetune_compare.mp4` (same 4 scenarios, 3 methods side by side) and
+`videos/full_journey.mp4` (all stages, 3.6 min; stages 1-7 are result clips, not screen recordings).
 
 ## Layout
 
@@ -122,12 +153,13 @@ powershell -File train_all.ps1
 :: simulation data
 .venv\Scripts\python.exe so101\sim_demo_gen.py --episodes 120
 .venv-lerobot\Scripts\python.exe so101\sim_to_lerobot.py
+:: co-training + closed-loop/offline evals, detached (progress in logs\pipeline_simft.txt)
+powershell -File pipeline_simft.ps1
+.venv\Scripts\python.exe so101\make_simft_compare.py
+.venv\Scripts\python.exe so101\make_full_journey.py
 ```
 
-## Pushing to GitHub (not done)
+## Repository
 
-The repo is local only. To publish privately later (needs the GitHub CLI logged in):
-
-```bat
-gh repo create so101-curobo-demo --private --source . --push
-```
+Private: https://github.com/sionchu/curobo-so101-demo (code, patches, README only; data, checkpoints and
+videos stay local).
