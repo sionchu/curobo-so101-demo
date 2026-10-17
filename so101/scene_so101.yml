@@ -1,0 +1,8 @@
+# Tabletop scene scaled for the SO-101 (reach ~0.4 m). Pose: [x, y, z, qw, qx, qy, qz]
+cuboid:
+  table:
+    dims: [1.0, 1.0, 0.04]
+    pose: [0.0, 0.0, -0.025, 1, 0, 0, 0]
+  box:
+    dims: [0.05, 0.05, 0.12]
+    pose: [0.22, 0.08, 0.06, 1, 0, 0, 0]
