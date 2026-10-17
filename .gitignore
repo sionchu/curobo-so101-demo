@@ -1,0 +1,27 @@
+﻿# --- environments / third-party clones (versions pinned in README) ---
+.venv/
+.venv-fp/
+.venv-lerobot/
+curobo/
+lerobot/
+FoundationPose/
+SO-ARM100/
+downloads/
+# --- data, models, checkpoints, generated media ---
+data/
+models/
+train/
+isaac/so101_usd/
+isaac/frames*/
+logs/
+videos/*.mp4
+videos/*.png
+!videos/README.md
+*.npz
+*.npy
+*.pth
+*.safetensors
+__pycache__/
+*.pyc
+# generated robot config with absolute paths
+so101/so101_pick.yml

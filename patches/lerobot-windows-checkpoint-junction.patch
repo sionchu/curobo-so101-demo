@@ -1,0 +1,25 @@
+﻿diff --git a/src/lerobot/common/train_utils.py b/src/lerobot/common/train_utils.py
+index da067d2..df44539 100644
+--- a/src/lerobot/common/train_utils.py
++++ b/src/lerobot/common/train_utils.py
+@@ -132,7 +132,19 @@ def update_last_checkpoint(checkpoint_dir: Path) -> None:
+     if last_checkpoint_dir.is_symlink():
+         last_checkpoint_dir.unlink()
+     relative_target = checkpoint_dir.relative_to(checkpoint_dir.parent)
+-    last_checkpoint_dir.symlink_to(relative_target)
++    try:
++        last_checkpoint_dir.symlink_to(relative_target)
++    except OSError:
++        # Windows without symlink privilege: use a directory junction (no admin needed).
++        import _winapi
++        import shutil
++
++        if last_checkpoint_dir.exists():
++            if last_checkpoint_dir.is_junction() if hasattr(last_checkpoint_dir, "is_junction") else False:
++                last_checkpoint_dir.rmdir()
++            else:
++                shutil.rmtree(last_checkpoint_dir)
++        _winapi.CreateJunction(str(checkpoint_dir.resolve()), str(last_checkpoint_dir))
+ 
+ 
+ # ---------------------------------------------------------------------------------------------
