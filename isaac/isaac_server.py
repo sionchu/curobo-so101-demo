@@ -9,6 +9,7 @@ Commands (one JSON object per line, one JSON reply per line):
   {"cmd": "state"}                            joints, cube pose, contacts since the last call
   {"cmd": "spawn", "name": .., "center": [..], "dims": [..], "yaw": ..}   add a static obstacle
   {"cmd": "wait", "seconds": s}               step physics without new targets
+  {"cmd": "remove", "name": ..}               delete an obstacle
   {"cmd": "quit"}
 Frames are written to --frames as JPEGs (one per rendered step) for the video.
 """
@@ -290,8 +291,14 @@ def handle(m):
         return dict(q=_joints(), cube=_cube_pose(), contacts=_summarize_contacts(), frames=frame_i,
                     sim_time=float(omni.timeline.get_timeline_interface().get_current_time()), obstacles=obs)
     if c == "spawn":
-        _box(f"/World/obstacles/{m['name']}", m["center"], m["dims"], m.get("yaw", 0.0), (0.95, 0.3, 0.1), report=True)
+        _box(f"/World/obstacles/{m['name']}", m["center"], m["dims"], m.get("yaw", 0.0), tuple(m.get("color", (0.95, 0.3, 0.1))),
+             report=True)
         _step(1)
+        return dict(ok=True, frames=frame_i)
+    if c == "remove":  # delete an obstacle prim (between episodes)
+        stage.RemovePrim(f"/World/obstacles/{m['name']}")
+        _step(1)
+        _contacts.clear()
         return dict(ok=True, frames=frame_i)
     if c == "reset":  # new episode without restarting: brick pose, robot joints, camera poses, table shade
         idx = _dof_order()

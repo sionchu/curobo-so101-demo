@@ -26,6 +26,7 @@ Legend: **measured** = observed in a run on this machine; **assumption** = a val
 | 6 | FoundationPose (model-based) on real RGB-D | vs ICP/PnP: cube 0.9 mm xy / -3.9 mm z / -3.8 deg yaw; bin 4.2 mm xy; tracking jitter < 0.6 mm | depth re-projected into RGB with our estimated extrinsics; FP says the cube is tilted ~17 deg (unverified) |
 | 7 | LeRobot ACT (scratch, 25k steps) and SmolVLA (fine-tune, 20k steps) on real data; held-out episodes 45-49 | arm MAE: hold-state 3.19, ACT 3.96, SmolVLA 2.00; gripper close timing: hold 4.0, ACT 3.0, SmolVLA 7.2 frames | Isaac closed-loop grasp from rendered cameras failed for both (visual sim-to-real gap; camera extrinsics guessed) |
 | 8 | Simulation data (cuRobo expert in Isaac) + co-training SmolVLA | Isaac closed-loop success: real-only 0/20, sim co-trained 7/20, expert 20/20; real offline arm MAE 2.01 -> 2.28 | eval scenes share the sim training distribution; no real-robot test |
+| 9 | Full chain: cuRobo approach -> SmolVLA grasp -> physics verify -> recover -> cuRobo transport around a static wall + a box appearing mid-transport | delivered 16/20 (policy grasp 1st try 16, retry 2, cuRobo fallback 2); cuRobo-only 17/20; replan median ~110 ms | perception = sim pose + 1.6 mm noise; recovery sometimes uses an unchecked joint move |
 
 ### Stage 7 offline evaluation (held-out episodes 45-49, 1355 frames, dataset units)
 
@@ -72,7 +73,44 @@ Not done: plugging the policy into the cuRobo harness (cuRobo approach -> policy
 transport with obstacles).
 
 Videos: `videos/sim_finetune_compare.mp4` (same 4 scenarios, 3 methods side by side) and
-`videos/full_journey.mp4` (all stages, 3.6 min; stages 1-7 are result clips, not screen recordings).
+`videos/full_journey.mp4` (all stages, 4.3 min; stages 1-7 are result clips, not screen recordings).
+
+### Stage 9 (full chain in Isaac Sim)
+
+`so101/chain_isaac.py`, same 20 seeded scenarios as Stage 8. Per episode: perceive (virtual sensor = sim brick pose +
+1.6 mm noise) -> cuRobo plans to a pre-grasp pose -> the sim co-trained SmolVLA (010000) runs closed-loop at 30 Hz
+from the rendered cameras until the brick rises 20 mm or 150 steps -> cuRobo lifts 4 cm -> verify from physics
+(both jaws in contact, brick >= 30 mm up) -> on failure: open, back off, re-perceive, policy once more, then the
+cuRobo scripted grasp -> cuRobo transport with the brick attached to the planner model -> a 4 x 4 cm box is spawned on
+the remaining path after 35 % of it, sensed from the sim's obstacle list, and cuRobo replans from the measured state
+-> place -> verify (brick inside the box) -> retreat. The policy runs in its own venv (`policy_server.py`, TCP).
+
+| Metric (20 scenarios) | cuRobo approach + SmolVLA grasp | cuRobo only (scripted grasp) |
+|---|---|---|
+| delivered (brick in box, physics) | **16/20** | **17/20** |
+| grasp verified | 20/20: policy 1st try 16, policy retry 2, cuRobo fallback 2 | 20/20 |
+| delivered without the cuRobo fallback (policy grasp + 1 retry only) | 14/20 | - |
+| static wall present | 13/20 | 13/20 |
+| box appeared mid-transport / replans that found a path | 13 / 9 | 13 / 10 |
+| replan time, median (range) | 113 ms (95-974) | 109 ms (93-833) |
+| clearance to the new box after replanning | 26-31 mm | 21-30 mm |
+| episodes with a robot-obstacle contact (PhysX) | 3 (two grazes <= 0.05 N s, one 7.6 N s) | 2 (grazes <= 0.05 N s) |
+| recoveries using the unchecked joint move | 6 | 0 |
+| mean wall-clock / sim time per episode | 53 s / 11.3 s | 39 s / 8.7 s |
+
+For reference (Stage 8, no obstacles, start at rest): policy alone end to end 7/20, cuRobo expert 20/20.
+"Without fallback" is derived from the same run: those episodes are identical up to the grasp decision.
+
+Every failure in both runs is the same step: no path around the box that appears mid-transport (4 + 3 cases). The
+wall contacts are grazes during transport (planned wall clearance ~10 mm; only the dynamic box is inflated by 1.5 cm)
+and one 7.6 N s contact in an episode whose recovery used the unchecked joint move (attribution inferred, contacts are
+not logged per step). Harness fixes made during the run (each restart re-ran all 20 scenarios):
+spawn the box >= 15 mm from the arm's current pose; recovery falls back to a joint move when cuRobo has no valid start;
+1.5 cm planning margin around the sensed box (7 mm planned clearance still hit it in physics); relax the place
+orientation when the tilt of a policy grasp makes the exact pose unreachable for the 5-DOF arm.
+
+Video: `videos/full_chain.mp4` (38 s: scenario 1 policy grasp + replan, 19 failed grasp -> recovery -> policy retry,
+3 replan failure).
 
 ## Layout
 
@@ -153,6 +191,10 @@ powershell -File train_all.ps1
 :: simulation data
 .venv\Scripts\python.exe so101\sim_demo_gen.py --episodes 120
 .venv-lerobot\Scripts\python.exe so101\sim_to_lerobot.py
+:: full chain (detached; waits for a free GPU; progress in logs\pipeline_chain.txt)
+powershell -File pipeline_chain.ps1
+.venv\Scripts\python.exe so101\summarize_chain.py
+.venv\Scripts\python.exe so101\make_chain_video.py chain_policy 1,19,3
 :: co-training + closed-loop/offline evals, detached (progress in logs\pipeline_simft.txt)
 powershell -File pipeline_simft.ps1
 .venv\Scripts\python.exe so101\make_simft_compare.py

@@ -124,5 +124,10 @@ card("8. Simulation data + co-training",
 gen_timelapse()
 still("sim_finetune_loss.png", 4)
 clip("sim_finetune_compare.mp4", max_s=40)
+if (V / "full_chain.mp4").exists():
+    card("9. Full chain: cuRobo + SmolVLA + harness",
+         [s.get("line9a", "cuRobo approach -> SmolVLA grasp -> physics verify -> recover -> cuRobo transport"),
+          s.get("line9b", "Static wall + a box that appears mid-transport (replan from the measured state)")])
+    clip("full_chain.mp4", max_s=40)
 card("Summary", [s.get("final", "See README for all numbers, assumptions and unverified items.")], seconds=4)
 out.close()
