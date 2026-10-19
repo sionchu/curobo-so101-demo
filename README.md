@@ -11,7 +11,20 @@ Everything lives in this folder. Isaac Sim (`C:\isaacsim`, 6.0.1-rc.7) is used r
 > Commit history note: the commits group the work by stage after the fact; they are not a live record of
 > the session.
 
-## Whose footage is this? (external recordings vs. made here)
+## What was built here (main results)
+
+All of the following was simulated, planned, trained and rendered on this PC (Isaac Sim 6.0.1 + cuRobo + LeRobot):
+
+| | Result (measured, 20 seeded Isaac scenarios) | Video |
+|---|---|---|
+| Full chain: cuRobo approach -> SmolVLA grasp -> physics verify -> recover -> cuRobo transport around a wall and a box that appears mid-transport | 16/20 delivered (policy grasp 1st try 16, retry 2, cuRobo fallback 2); cuRobo-only 17/20; replan median ~110 ms | `full_chain.mp4` |
+| Simulation data: 120 cuRobo expert demos generated in Isaac, SmolVLA co-trained (real + sim) | closed-loop from rest: real-data-only 0/20 -> co-trained 7/20 (expert 20/20) | `sim_finetune_compare.mp4` |
+| Planner harness in PhysX with a static wall and a box spawned mid-transport | replanned in 0.137 s, 9.8 mm clearance, 0 contacts | `isaac_harness_obstacles.mp4` |
+
+Details: "Stage 9", "Stage 8" and stage 5 below. `videos/full_journey.mp4` shows these first; the stages built on other
+people's recordings (1-4, 6, 7 real-data training) are a short reference section at its end.
+
+## Reference inputs: whose footage is this?
 
 No real robot was run for this project. **External** = someone else's public recording, used as input.
 **Made here** = simulated, planned, trained or rendered on this PC. `videos/full_journey.mp4` carries the same

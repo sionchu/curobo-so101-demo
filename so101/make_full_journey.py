@@ -100,70 +100,39 @@ def gen_timelapse(seconds=12.0, n=12):
         out.write(tag(np.asarray(can), SIM))
 
 
-card("SO-101 + NVIDIA cuRobo on one Windows PC",
-     ["Real LeRobot data -> cuRobo planning -> Isaac Sim physics -> policy learning",
-      "Everything below ran on an RTX 4070 Ti (Windows 11)."],
-     "Note: stages 1-7 are shown as result clips; there are no screen recordings of the work itself.", 5)
-legend = Image.new("RGB", (W, H), (18, 22, 30))
-d_ = ImageDraw.Draw(legend)
-d_.text((70, 150), "Whose footage is this?", fill=(255, 255, 255), font=_font(42))
-for i_, (col_, t1, t2) in enumerate([
-        (EXT, "EXTERNAL", "real robot / camera recordings from public Hugging Face datasets, not made here:"),
-        (None, "", "  lerobot/svla_so101_pickplace (LeRobot team)  |  CarolinePascal/so101_depth_raw"),
-        (None, "", "  No real robot was run for this project."),
-        (OURS, "MADE HERE", "everything simulated, planned, trained or rendered on this PC:"),
-        (None, "", "  cuRobo plans, Viser 3D views, Isaac Sim scenes/physics, sim data, trained policies, overlays")]):
-    if col_:
-        d_.rectangle([70, 250 + 46 * i_, 230, 280 + 46 * i_], fill=col_)
-        d_.text((80, 253 + 46 * i_), t1, fill=(255, 255, 255), font=_font(20))
-    d_.text((250, 253 + 46 * i_), t2, fill=(210, 220, 232), font=_font(20))
-d_.text((70, 640), "Each clip below carries these badges at the bottom of the region they describe.", fill=(150, 160, 175), font=_font(17))
-for _ in range(int(6 * FPS)):
-    out.write(np.asarray(legend))
-card("1-2. Real SO-101 recording, replayed in cuRobo",
-     ["lerobot/svla_so101_pickplace: robot joints + 2 real cameras",
-      "cuRobo re-plans through recorded waypoints: 0.5 mm at waypoints, 8-10 mm mean gap"])
-clip("replay_ep5.mp4", max_s=15, tags=[(0, 800, OURS, "MADE HERE: cuRobo replay + re-plan (3D view)"), (800, 1280, EXT, "EXTERNAL: lerobot/svla_so101_pickplace")])
-card("3. Scene rebuilt from real depth",
-     ["Plane fit + ICP robot placement (6.5 mm residual), TSDF/ESDF in cuRobo",
-      "Plan into the real bin: ~0.1 s, 14 mm clearance; MPC tracks a moving target"])
-clip("depth_plan.mp4", max_s=19, tags=[(0, 800, OURS, "MADE HERE: cuRobo scene + plan from that depth"), (800, 1280, EXT, "EXTERNAL: CarolinePascal/so101_depth_raw")])
-clip("mpc.mp4", max_s=12, tags=[(0, 800, OURS, "MADE HERE: cuRobo scene + plan from that depth"), (800, 1280, EXT, "EXTERNAL: CarolinePascal/so101_depth_raw")])
-card("4. Harness: perceive -> plan -> verify -> recover",
-     ["Injected 25 mm perception error caught by grasp verification (25.1 mm)",
-      "Re-perceive -> replan -> placed 5.0 mm from target (kinematic execution)"])
-clip("harness_pickplace.mp4", max_s=19, tags=[(0, 800, OURS, "MADE HERE: cuRobo scene + plan from that depth"), (800, 1280, EXT, "EXTERNAL: CarolinePascal/so101_depth_raw")])
-card("5. Isaac Sim PhysX + obstacles",
-     ["Real gripper physics: cube lifted 78 mm; box appears mid-transport",
-      "Detected (-7.1 mm on old path) -> replanned in 0.137 s -> 9.8 mm clearance, 0 contacts"])
-clip("isaac_harness_obstacles.mp4", max_s=27)
-card("6. FoundationPose on real RGB-D",
-     ["Built on Windows with a pip-only CUDA 13 toolchain (no admin)",
-      "vs ICP/PnP: cube 0.9 mm xy, bin 4.2 mm xy; tracking jitter < 0.6 mm"])
-clip("foundationpose_overlay.mp4", max_s=11.5, tags=[(160, 1120, EXT, "EXTERNAL video: CarolinePascal/so101_depth_raw  |  MADE HERE: pose boxes/axes (FoundationPose run on this PC)")])
-card("7. Policy learning on real data (ACT, SmolVLA)",
-     ["Held-out arm MAE: hold-state 3.19 | ACT 3.96 | SmolVLA 2.00",
-      "Closed-loop in Isaac: both failed to grasp (visual sim-to-real gap)"])
-still("policy_train_loss.png", 4, tags=[(0, 1280, OURS, "MADE HERE: training on this PC (on the external real dataset)")])
-still("policy_offline_ep47.png", 5, tags=[(0, 1280, OURS, "MADE HERE: policy predictions  |  reference curves = EXTERNAL recorded actions (lerobot/svla_so101_pickplace)")])
-clip("isaac_policy_grasp.mp4", max_s=24)
 summary = ROOT / "logs" / "sim_finetune_summary.json"
 s = json.loads(summary.read_text()) if summary.exists() else {}
-card("8. Simulation data + co-training",
-     [s.get("line1", "cuRobo expert demos in Isaac, mixed with the real data"),
-      s.get("line2", "SmolVLA fine-tuned from the real-data checkpoint")])
+card("SO-101 pick & place: cuRobo + Isaac Sim + SmolVLA",
+     ["Built and run on one Windows PC (RTX 4070 Ti): simulation, planning, data, training, evaluation",
+      "Main part: everything simulated and rendered here.  External recordings: reference section at the end."],
+     "Badges: green = made here; orange = someone else's public recording (used as reference input).", 5)
+if (V / "full_chain.mp4").exists():
+    card("Result: full chain in Isaac Sim physics",
+         ["cuRobo approach -> SmolVLA grasp -> physics verify -> recover -> cuRobo transport around obstacles",
+          s.get("line9a", ""), s.get("line9b", "")])
+    clip("full_chain.mp4", max_s=40)
+card("How the grasp policy got there: simulation data",
+     [s.get("line1", ""), s.get("line2", ""), "Only physics-verified successes kept (120/120 of 118 attempts + 2 tests)"])
 gen_timelapse()
 still("sim_finetune_loss.png", 4)
-clip("sim_finetune_compare.mp4", max_s=40)
+clip("sim_finetune_compare.mp4", max_s=32)
 if (V / "learning_story.mp4").exists():  # its last ~42 s repeat full_chain.mp4, shown in stage 9
     card("8b. What the training changed, checkpoint by checkpoint",
          ["Training data (real + sim demos and their gripper paths), loss curves from the logs,",
           "held-out predictions, and the same Isaac scenarios run by every checkpoint"])
-    clip("learning_story.mp4", max_s=63)
-if (V / "full_chain.mp4").exists():
-    card("9. Full chain: cuRobo + SmolVLA + harness",
-         [s.get("line9a", "cuRobo approach -> SmolVLA grasp -> physics verify -> recover -> cuRobo transport"),
-          s.get("line9b", "Static wall + a box that appears mid-transport (replan from the measured state)")])
-    clip("full_chain.mp4", max_s=40)
+    clip("learning_story.mp4", max_s=69, tags=[])  # carries its own per-section badges (real grid is EXTERNAL)
+card("Planner harness in physics: obstacles and recovery",
+     ["Isaac Sim PhysX gripper; a box appears mid-transport -> detected -> replanned in 0.137 s",
+      "9.8 mm clearance, 0 contacts; injected 25 mm perception error caught and recovered"])
+clip("isaac_harness_obstacles.mp4", max_s=27)
 card("Summary", [s.get("final", "See README for all numbers, assumptions and unverified items.")], seconds=4)
+card("Reference: inputs from other people's recordings",
+     ["Public Hugging Face datasets (not recorded here; no real robot was run for this project):",
+      "lerobot/svla_so101_pickplace - real SO-101 demos: task layout + real-data policy training",
+      "CarolinePascal/so101_depth_raw - real RGB-D: depth scene + FoundationPose check",
+      "Shown briefly: left/overlay = computed here, orange panels = their recording."], seconds=5)
+clip("replay_ep5.mp4", max_s=6, tags=[(0, 800, OURS, "MADE HERE: cuRobo 3D view"), (800, 1280, EXT, "REFERENCE: lerobot/svla_so101_pickplace")])
+clip("depth_plan.mp4", max_s=6, tags=[(0, 800, OURS, "MADE HERE: cuRobo 3D view"), (800, 1280, EXT, "REFERENCE: CarolinePascal/so101_depth_raw")])
+clip("harness_pickplace.mp4", max_s=6, tags=[(0, 800, OURS, "MADE HERE: cuRobo 3D view"), (800, 1280, EXT, "REFERENCE: CarolinePascal/so101_depth_raw")])
+clip("foundationpose_overlay.mp4", max_s=5, tags=[(160, 1120, EXT, "REFERENCE video: CarolinePascal/so101_depth_raw  |  MADE HERE: pose overlay")])
 out.close()
