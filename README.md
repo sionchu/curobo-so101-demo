@@ -259,4 +259,4 @@ powershell -File pipeline_learning.ps1
 ## Repository
 
 Public: https://github.com/sionchu/curobo-so101-demo (code, README, the LinkedIn cut videos; data, checkpoints
-and the other videos stay local). The FoundationPose-derived patches were removed from the history before publishing.
+and the other videos stay local). The FoundationPose-derived patches are included under their own license (see above).

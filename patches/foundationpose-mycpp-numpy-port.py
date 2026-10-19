@@ -1,5 +1,5 @@
 # Derived from NVIDIA FoundationPose (NVlabs/FoundationPose, a1b694b). NVIDIA Source Code License, non-commercial use only;
-# see patches/LICENSE-NVIDIA-FoundationPose.txt. Modified: NumPy port of mycpp for Windows.
+# see patches/LICENSE-FoundationPose.txt. Modified: NumPy port of mycpp for Windows.
 """Pure-NumPy port of FoundationPose's mycpp.cluster_poses (mycpp/src/app/pybind_api.cpp).
 
 The C++ extension needs Boost + Eigen + OpenMP, which are not installed on this Windows machine.
