@@ -10,6 +10,7 @@ Baselines: hold (action = current state), last (action = previous recorded actio
 """
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -27,6 +28,7 @@ from lerobot.policies.factory import get_policy_class, make_pre_post_processors 
 
 ROOT = Path(__file__).resolve().parent.parent
 HOLDOUT = [45, 46, 47, 48, 49]
+OUT = os.environ.get("EVAL_OUT", "policy_eval")  # output name (json, npz, png suffix)
 JOINTS = ["shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex", "wrist_roll", "gripper"]
 H = 10
 
@@ -135,7 +137,8 @@ if __name__ == "__main__":
         allpred[name] = pred
         print(name, json.dumps({k: v for k, v in r.items() if k != "gripper_close_timing_abs_err_frames"}), flush=True)
 
-    (ROOT / "logs" / "policy_eval.json").write_text(json.dumps(results, indent=1, default=float))
+    (ROOT / "logs" / f"{OUT}.json").write_text(json.dumps(results, indent=1, default=float))
+    np.savez(ROOT / "logs" / f"{OUT}_preds.npz", recorded=act, state=st, episode=ep, **allpred)
     for e_ in (HOLDOUT[0], HOLDOUT[2]):
         idx = np.flatnonzero(ep == e_)
         fig, axs = plt.subplots(2, 3, figsize=(15, 7), sharex=True)
@@ -148,6 +151,6 @@ if __name__ == "__main__":
         axs[0, 0].legend(fontsize=8)
         fig.suptitle(f"Held-out episode {e_}: predicted vs recorded actions (offline, from recorded observations)")
         fig.tight_layout()
-        out = ROOT / "videos" / f"policy_offline_ep{e_}.png"
+        out = ROOT / "videos" / (f"policy_offline_ep{e_}.png" if OUT == "policy_eval" else f"{OUT}_ep{e_}.png")
         fig.savefig(out, dpi=110)
         print("saved", out)

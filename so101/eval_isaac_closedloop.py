@@ -83,6 +83,7 @@ def main():
     ap.add_argument("--tag", default="eval")
     ap.add_argument("--video-every", type=int, default=5, help="keep viewport frames for every Nth scenario")
     ap.add_argument("--limit", type=int, default=None)
+    ap.add_argument("--only", default=None, help="comma-separated scenario indices")
     a = ap.parse_args()
     if a.make_scenarios:
         make_scenarios()
@@ -100,11 +101,18 @@ def main():
         cfg.device = "cuda"
         pol = get_policy_class(cfg.type).from_pretrained(a.policy, config=cfg).to("cuda").eval()
         pre, post = make_pre_post_processors(cfg, pretrained_path=a.policy)
+        # a model never fine-tuned here (smolvla_base) names its cameras camera1..3: feed up/side as the first two
+        cams = [k for k in cfg.input_features if k.startswith("observation.images.")]
+        cam_up, cam_side = (("observation.images.up", "observation.images.side") if "observation.images.up" in cams
+                            else (cams[0], cams[1]))
     if a.expert:
         import sim_demo_gen as G
     results, sim, cur_box = [], None, None
     t0 = time.perf_counter()
-    for i, sc in enumerate(S["scenarios"][: a.limit]):
+    idx = [int(x) for x in a.only.split(",")] if a.only else range(len(S["scenarios"][: a.limit]))
+    trajs = {}
+    for i in idx:
+        sc = S["scenarios"][i]
         if cur_box != sc["box"]:  # new Isaac session per box placement
             if sim is not None:
                 sim.close()
@@ -112,10 +120,23 @@ def main():
             shutil.rmtree(fdir, ignore_errors=True)
             sim = IsaacSim(port=5602, frames_dir=fdir, log=ROOT / "logs" / f"isaac_eval_{a.tag}.log")
             sim.call(cmd="setup", scene=session_scene(sc, rest_n))
+            cur_dir = fdir.name
+            raw_call = sim.call
+
+            def logged(_raw=raw_call, **m):  # joint + brick trace per scenario (exec = one physics segment)
+                rep = _raw(**m)
+                if m.get("cmd") == "exec":
+                    qs = m["q"]
+                    TR["q"].extend([rep["q"]] if len(qs) == 1 else qs)  # policy: measured; expert: commanded path
+                    TR["cube"].append(rep["cube"][0])
+                return rep
+            sim.call = logged
             cur_box = sc["box"]
             if a.expert:
                 ex = G.Expert(np.array(sc["box"]), sc["box_yaw"])
         te = time.perf_counter()
+        TR = dict(q=[], cube=[])
+        fs = sim.call(cmd="state")["frames"]
         if a.expert:
             class _R:  # replay this scenario's sampled values through the generator's episode function
                 def __init__(self, sc):
@@ -149,7 +170,7 @@ def main():
             for k in range(MAX_FRAMES):
                 rd = sim.call(cmd="render")
                 im = {n: np.frombuffer(base64.b64decode(v["b64"]), np.uint8).reshape(v["shape"]) for n, v in rd["images"].items()}
-                obs = {"observation.images.up": im["up"], "observation.images.side": im["side"],
+                obs = {cam_up: im["up"], cam_side: im["side"],
                        "observation.state": to_norm(np.array(rd["q"], np.float32))}
                 act = predict_action(obs, pol, torch.device("cuda"), pre, post, use_amp=False, task=TASK,
                                      robot_type="so100_follower").cpu().numpy().reshape(-1)
@@ -161,8 +182,11 @@ def main():
             st = sim.call(cmd="wait", seconds=0.5)
             r = judge(st["cube"], sc, z0, max_rise)
         fe = sim.call(cmd="state")["frames"]
-        r.update(scenario=i, seconds=round(time.perf_counter() - te, 1), frame_end=fe,
-                 frames_dir=f"frames_eval_{a.tag}_{i - i % 5:02d}")
+        r.update(scenario=i, seconds=round(time.perf_counter() - te, 1), frame_start=fs, frame_end=fe,
+                 frames_dir=cur_dir)
+        trajs[i] = dict(q=np.round(np.array(TR["q"]), 4).tolist(), cube=np.round(np.array(TR["cube"]), 4).tolist(),
+                        box=sc["box"], box_yaw=sc["box_yaw"], brick0=sc["brick"], success=r["success"])
+        (ROOT / "logs" / f"traj_{a.tag}.json").write_text(json.dumps(trajs))
         results.append(r)
         print(f"[{a.tag}] scenario {i:02d}: {'SUCCESS' if r['success'] else 'fail   '} lifted={r['lifted']} "
               f"max_rise={r['max_rise_mm']}mm ({r['seconds']}s)", flush=True)

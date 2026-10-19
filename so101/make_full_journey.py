@@ -124,6 +124,11 @@ card("8. Simulation data + co-training",
 gen_timelapse()
 still("sim_finetune_loss.png", 4)
 clip("sim_finetune_compare.mp4", max_s=40)
+if (V / "learning_story.mp4").exists():  # its last ~42 s repeat full_chain.mp4, shown in stage 9
+    card("8b. What the training changed, checkpoint by checkpoint",
+         ["Training data (real + sim demos and their gripper paths), loss curves from the logs,",
+          "held-out predictions, and the same Isaac scenarios run by every checkpoint"])
+    clip("learning_story.mp4", max_s=63)
 if (V / "full_chain.mp4").exists():
     card("9. Full chain: cuRobo + SmolVLA + harness",
          [s.get("line9a", "cuRobo approach -> SmolVLA grasp -> physics verify -> recover -> cuRobo transport"),

@@ -69,8 +69,7 @@ Offline re-evaluation on held-out real episodes 45-49 (same protocol as Stage 7)
 Reading (inference, not verified): the sim data closes the *in-sim* visual gap, but the eval scenes come from
 the same distribution as the sim training data, so this says nothing yet about the real robot - and the real
 offline metrics got slightly worse. SmolVLA re-runs differ by ~0.01 MAE / ~1 frame (stochastic inference).
-Not done: plugging the policy into the cuRobo harness (cuRobo approach -> policy grasp -> verify -> cuRobo
-transport with obstacles).
+The policy is plugged into the cuRobo harness in Stage 9.
 
 Videos: `videos/sim_finetune_compare.mp4` (same 4 scenarios, 3 methods side by side) and
 `videos/full_journey.mp4` (all stages, 4.3 min; stages 1-7 are result clips, not screen recordings).
@@ -111,6 +110,27 @@ orientation when the tilt of a policy grasp makes the exact pose unreachable for
 
 Video: `videos/full_chain.mp4` (38 s: scenario 1 policy grasp + replan, 19 failed grasp -> recovery -> policy retry,
 3 replan failure).
+
+### Learning story (what training changed, checkpoint by checkpoint)
+
+`videos/learning_story.mp4` (105 s, Korean captions; `so101/make_learning_story.py`, gripper paths from
+`so101/compute_ee.py`): training data grids (9 of 50 real demos, 9 of 120 sim expert demos) and the gripper-tip
+paths of all 45 real training + 120 sim episodes (cuRobo FK), loss curves from the train logs, held-out
+predictions per checkpoint, then the same Isaac scenarios (4, 6, 10, 14) run by every checkpoint with live
+gripper paths, a success chart, and the Stage 9 clip.
+
+| Checkpoint | Isaac closed-loop success / lifted (no obstacles, start at rest) | held-out real arm MAE |
+|---|---|---|
+| SmolVLA base, never fine-tuned here (cameras fed as camera1/2) | 0/4 / 0/4 (trajectory scenarios only) | - |
+| real data only, 20k | 0/20 / 0/20 | 2.02 |
+| real + sim, 5k | 5/20 / 9/20 | 2.58 |
+| real + sim, 10k | 7/20 / 12/20 | 2.27 |
+| cuRobo expert | 20/20 / 20/20 | - |
+
+The 5k row is a new run (`powershell -File pipeline_learning.ps1`); the 20k / 10k / expert rows are the Stage 8
+runs. The trajectory reruns of scenarios 4, 6, 10, 14 gave real-only 0/4, 10k 2/4 (lifted 4/4), expert 4/4; SmolVLA
+is stochastic, so these do not match the Stage 8 per-scenario outcomes exactly. Expert paths are the commanded cuRobo
+trajectories; policy paths are the measured joints after each step.
 
 ## Layout
 
@@ -198,6 +218,10 @@ powershell -File pipeline_chain.ps1
 :: co-training + closed-loop/offline evals, detached (progress in logs\pipeline_simft.txt)
 powershell -File pipeline_simft.ps1
 .venv\Scripts\python.exe so101\make_simft_compare.py
+:: learning story: per-checkpoint evals with joint traces (detached; logs\pipeline_learning.txt), then the video
+powershell -File pipeline_learning.ps1
+.venv\Scripts\python.exe so101\compute_ee.py
+.venv-lerobot\Scripts\python.exe so101\make_learning_story.py
 .venv\Scripts\python.exe so101\make_full_journey.py
 ```
 
