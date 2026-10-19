@@ -3,7 +3,7 @@
 A staged demo built on one Windows 11 PC: cuRobo motion planning for the LeRobot SO-101 arm, driven by
 real LeRobot datasets, a depth-reconstructed scene, a perception -> plan -> verify -> recover harness,
 Isaac Sim PhysX execution with obstacles, FoundationPose on real RGB-D, and LeRobot policy training
-(ACT, SmolVLA) including simulation data.
+(ACT, SmolVLA) including simulation data. Inspired by what I saw at ROSCon China.
 
 Everything lives in this folder. Isaac Sim (`C:\isaacsim`, 6.0.1-rc.7) is used read-only through its own
 `python.bat`; nothing was installed into it. No system CUDA Toolkit was installed (see "CUDA without admin").
@@ -204,8 +204,9 @@ NVIDIA publishes the CUDA 13.0 toolchain as pip wheels. In `.venv-fp`:
 
 ## Third-party code (cloned, not vendored)
 
-`patches/foundationpose-*` contain small changes to / a port of NVIDIA FoundationPose code, which is under the NVIDIA
-Source Code License (non-commercial); keep this repository private or remove those files before sharing publicly.
+The FoundationPose patches are derived from NVIDIA FoundationPose code (NVIDIA Source Code License, non-commercial),
+so they are not in this public repository or its history. FoundationPose itself has to be cloned and set up separately
+under its own license.
 
 | Repo | Commit | License |
 |---|---|---|
@@ -257,5 +258,5 @@ powershell -File pipeline_learning.ps1
 
 ## Repository
 
-Private: https://github.com/sionchu/curobo-so101-demo (code, patches, README only; data, checkpoints and
-videos stay local).
+Public: https://github.com/sionchu/curobo-so101-demo (code, README, the LinkedIn cut videos; data, checkpoints
+and the other videos stay local). The FoundationPose-derived patches were removed from the history before publishing.
