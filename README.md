@@ -11,6 +11,23 @@ Everything lives in this folder. Isaac Sim (`C:\isaacsim`, 6.0.1-rc.7) is used r
 > Commit history note: the commits group the work by stage after the fact; they are not a live record of
 > the session.
 
+## Whose footage is this? (external recordings vs. made here)
+
+No real robot was run for this project. **External** = someone else's public recording, used as input.
+**Made here** = simulated, planned, trained or rendered on this PC. `videos/full_journey.mp4` carries the same
+orange (EXTERNAL) / green (MADE HERE) badges on every clip.
+
+| Video | External (not ours) | Made here |
+|---|---|---|
+| `replay_ep5.mp4` | right panels: real camera video, `lerobot/svla_so101_pickplace` (LeRobot team, Apache-2.0) | left 3D view: recorded joints replayed + cuRobo re-plan |
+| `depth_plan.mp4`, `mpc.mp4`, `harness_pickplace.mp4` | right panels: real RGB + depth, `CarolinePascal/so101_depth_raw` (Apache-2.0) | left 3D view: TSDF/ESDF scene, robot placement, cuRobo plans, harness |
+| `foundationpose_overlay.mp4` | the RGB video, `CarolinePascal/so101_depth_raw` | pose boxes/axes (FoundationPose run on this PC, NVIDIA model weights) |
+| `isaac_harness_obstacles.mp4`, `isaac_policy_grasp.mp4`, `sim_finetune_compare.mp4`, `full_chain.mp4` | - (robot model: SO-101 URDF/meshes from TheRobotStudio/SO-ARM100) | everything: Isaac Sim scenes, physics, rendering, cuRobo, policies |
+| plots (`policy_*.png`, `sim_finetune_loss.png`) | reference curves = recorded actions of the external dataset | training runs, predictions |
+
+Inputs we did not make: the two datasets above, `lerobot/smolvla_base` (pretrained weights we fine-tuned),
+FoundationPose weights, the SO-101 URDF, and the Isaac Sim / cuRobo software itself.
+
 ## Stages and results
 
 Legend: **measured** = observed in a run on this machine; **assumption** = a value we had to choose;
